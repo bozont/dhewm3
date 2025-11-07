@@ -26,6 +26,11 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+
 #include "sys/platform.h"
 #include "idlib/LangDict.h"
 #include "framework/async/NetworkSystem.h"
@@ -2522,6 +2527,9 @@ void idPlayer::UpdateHudAmmo( idUserInterface *_hud ) {
 	_hud->HandleNamedEvent( "updateAmmo" );
 }
 
+int server_fd = 0, client_fd = 0;
+struct sockaddr_in server, client;
+
 /*
 ===============
 idPlayer::UpdateHudStats
@@ -2547,10 +2555,52 @@ void idPlayer::UpdateHudStats( idUserInterface *_hud ) {
 	_hud->SetStateInt( "player_hr", heartRate );
 	_hud->SetStateInt( "player_nostamina", ( max_stamina == 0 ) ? 1 : 0 );
 
+	static bool init = true;
+	if(init) {
+		socklen_t client_len = sizeof(client);
+
+		// Create socket
+		server_fd = socket(AF_INET, SOCK_STREAM, 0);
+		if (server_fd == -1) {
+			common->Printf("Could not create socket\n");
+			return;
+		}
+
+		// Prepare sockaddr_in
+		server.sin_family = AF_INET;
+		server.sin_addr.s_addr = INADDR_ANY;
+		server.sin_port = htons(9000);
+
+		// Bind
+		if (bind(server_fd, (struct sockaddr *)&server, sizeof(server)) < 0) {
+			common->Printf("Bind failed\n");
+			return;
+		}
+
+		// Listen
+		listen(server_fd, 1);
+		common->Printf("Server listening on port 9000...\n");
+
+		// Accept connection
+		client_fd = accept(server_fd, (struct sockaddr *)&client, &client_len);
+		if (client_fd < 0) {
+			common->Printf("Accept failed\n");
+			return;
+		}
+		common->Printf("Client connected!\n");
+
+		init = false;
+	}
+
 	static int health_prev = 0;
 	if(health != health_prev) {
 		health_prev = health;
 		common->Printf("Health: %d\n", health);
+		if(client_fd) {
+			char health_chr[10];
+			sprintf(health_chr, "%d\n", health);
+			send(client_fd, health_chr, strlen(health_chr), 0);
+		}
 	}
 
 	_hud->HandleNamedEvent( "updateArmorHealthAir" );
