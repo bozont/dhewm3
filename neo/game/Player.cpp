@@ -2547,6 +2547,12 @@ void idPlayer::UpdateHudStats( idUserInterface *_hud ) {
 	_hud->SetStateInt( "player_hr", heartRate );
 	_hud->SetStateInt( "player_nostamina", ( max_stamina == 0 ) ? 1 : 0 );
 
+	static int health_prev = 0;
+	if(health != health_prev) {
+		health_prev = health;
+		common->Printf("Health: %d\n", health);
+	}
+
 	_hud->HandleNamedEvent( "updateArmorHealthAir" );
 
 	if ( healthPulse ) {
@@ -2811,6 +2817,7 @@ void idPlayer::FireWeapon( void ) {
 		if ( weapon.GetEntity()->AmmoInClip() || weapon.GetEntity()->AmmoAvailable() ) {
 			AI_ATTACK_HELD = true;
 			weapon.GetEntity()->BeginAttack();
+
 			if ( ( weapon_soulcube >= 0 ) && ( currentWeapon == weapon_soulcube ) ) {
 				if ( hud ) {
 					hud->HandleNamedEvent( "soulCubeNotReady" );
@@ -3920,6 +3927,13 @@ void idPlayer::Weapon_Combat( void ) {
 		inventory.clip[ currentWeapon ] = weapon.GetEntity()->AmmoInClip();
 		if ( hud && ( currentWeapon == idealWeapon ) ) {
 			UpdateHudAmmo( hud );
+
+			static int ammo_prev = -200;
+			const int ammo = weapon.GetEntity()->AmmoInClip();
+			if(ammo != ammo_prev) {
+				common->Printf("Ammo: %d\n", ammo);
+				ammo_prev = ammo;
+			}
 		}
 	}
 }
